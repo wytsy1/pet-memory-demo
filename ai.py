@@ -78,16 +78,18 @@ def build_prompt(play_type, pet_type, pet_name, personality, scene, extra_desc, 
     p_hint = PERSONALITY_HINT_EN.get(personality, "")
     scene_desc = SCENE_HINT_EN.get(scene, "in a warm, gentle setting")
 
-    pet_desc_parts = [species]
+    # 把宠物种类放在最前面并强调，避免模型忽略
+    species_emphatic = f"{species} (must be {species}, not any other animal)"
+    pet_desc_parts = [species_emphatic]
     if extra_desc:
-        pet_desc_parts.append(extra_desc.strip())
+        # 用户描述用引号包起来标记为附加细节
+        pet_desc_parts.append(f'with these features: "{extra_desc.strip()}"')
     if p_hint:
         pet_desc_parts.append(p_hint)
     pet_desc = ", ".join(pet_desc_parts)
 
     prompt = base.format(pet_desc=pet_desc, scene_desc=scene_desc)
-    # 加一句"无文字"，避免 AI 在图里乱写中文
-    prompt += ". No text, no watermark, no signature."
+    prompt += ". No text, no watermark, no signature, no human face."
     return prompt
 
 
