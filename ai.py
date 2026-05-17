@@ -77,30 +77,57 @@ SCENE_HINT_EN = {
 
 def build_prompt(play_type, pet_type, pet_name, personality, scene, extra_desc, message, vision_desc=None):
     """构造图像生成 prompt。
-    vision_desc: 来自 vision LLM 的精确照片描述（如果有，优先使用，把用户文字描述作为补充）
+    vision_desc: 来自 vision LLM 的多轮精确描述（最高优先级，作为主体）
     """
-    base = PLAY_PROMPT_BASE.get(play_type, PLAY_PROMPT_BASE["memorial"])
     species = PET_TYPE_HINT.get(pet_type, "a beloved pet")
     p_hint = PERSONALITY_HINT_EN.get(personality, "")
     scene_desc = SCENE_HINT_EN.get(scene, "in a warm, gentle setting")
 
-    if vision_desc:
-        # 视觉描述最权威，作为主体
-        pet_desc_parts = [vision_desc.strip()]
-        if extra_desc:
-            pet_desc_parts.append(f'additional owner notes: "{extra_desc.strip()}"')
-    else:
-        # 没有视觉描述时，强调种类避免模型乱画
-        species_emphatic = f"{species} (must be {species}, not any other animal)"
-        pet_desc_parts = [species_emphatic]
-        if extra_desc:
-            pet_desc_parts.append(f'with these features: "{extra_desc.strip()}"')
-    if p_hint:
-        pet_desc_parts.append(p_hint)
-    pet_desc = ", ".join(pet_desc_parts)
+    # 风格 + 镜头（每种玩法不同氛围）
+    style_map = {
+        "memorial": (
+            "Style: warm photorealistic memorial portrait, soft natural light, intimate emotional atmosphere, "
+            "shot on Sony A7 with 50mm lens at f/1.8, shallow depth of field, subtle film grain, "
+            "gentle cream and warm tones, high detail on fur texture and eyes, looks like a tender family photo."
+        ),
+        "aging": (
+            "Style: heartwarming photorealistic portrait of an elderly version of this pet — "
+            "subtle signs of age (slightly graying fur around the muzzle, calm wise eyes), "
+            "soft warm afternoon light, shot on Canon R5 with 85mm lens at f/2, gentle bokeh, "
+            "cinematic emotional mood, cream and amber tones."
+        ),
+        "garden": (
+            "Style: serene photorealistic scene, the pet resting peacefully in a sunlit memorial garden, "
+            "soft pastel flowers around, golden hour light, warm cream palette, 50mm lens, shallow depth of field, "
+            "tender and tranquil mood."
+        ),
+    }
+    style = style_map.get(play_type, style_map["memorial"])
 
-    prompt = base.format(pet_desc=pet_desc, scene_desc=scene_desc)
-    prompt += ". No text, no watermark, no signature, no human face."
+    # 主体描述：优先用 vision 多段输出
+    if vision_desc:
+        subject = (
+            "PET TO RECREATE (extremely faithful reproduction required):\n"
+            f"{vision_desc.strip()}\n\n"
+            "Use every detail above. Match the exact fur color, pattern, eye color, markings, "
+            "ear shape, and any distinctive features. The result should look like the SAME individual pet."
+        )
+        if extra_desc:
+            subject += f'\n\nOwner-provided extra notes: "{extra_desc.strip()}"'
+    else:
+        subject = (
+            f"Subject: {species} (strictly a {species}, not any other animal). "
+            + (f'Owner-described features: "{extra_desc.strip()}". ' if extra_desc else "")
+            + (p_hint if p_hint else "")
+        )
+
+    scene_line = f"Scene: {scene_desc}."
+    constraints = (
+        "Constraints: photorealistic, no humans visible, no text, no watermark, no signature, "
+        "no captions, only the pet as described, frame the pet centered, eyes clearly visible."
+    )
+
+    prompt = "\n\n".join([subject, scene_line, style, constraints])
     return prompt
 
 
@@ -205,34 +232,75 @@ def chat(messages, model=None, max_tokens=600, temperature=0.7):
     return data["choices"][0]["message"]["content"]
 
 
+def _image_msg(image_path, text):
+    with open(image_path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("ascii")
+    ext = image_path.rsplit(".", 1)[-1].lower()
+    mime = "jpeg" if ext in ("jpg", "jpeg") else ext
+    return [{
+        "role": "user",
+        "content": [
+            {"type": "text", "text": text},
+            {"type": "image_url", "image_url": {"url": f"data:image/{mime};base64,{b64}"}},
+        ],
+    }]
+
+
 def describe_pet_photo(image_path):
-    """用 vision LLM 描述宠物照片，返回英文描述（用于喂给生图模型）。失败返回 None。"""
+    """多轮 vision 调用，从不同角度提取细节，组装成超精细英文描述。
+    返回单个字符串，已经是组装好的可直接放入图像 prompt 的描述。
+    """
     if not is_enabled() or not os.path.exists(image_path):
         return None
+
+    # ---- Pass 1: 结构化基础特征 ----
+    p1 = (
+        "You are an expert pet identification AI helping create a faithful portrait. "
+        "Examine the pet in this photo and output STRICTLY in this format, English only, "
+        "one line per field, no extra commentary:\n"
+        "SPECIES: [cat|dog|other - be specific]\n"
+        "BREED: [most likely breed or mix; if unclear say 'mixed-breed' with closest match]\n"
+        "BUILD: [body size and shape: slim/medium/chunky; proportions]\n"
+        "AGE_LOOK: [kitten/puppy/young/adult/senior - based on visible features]\n"
+        "PRIMARY_COLOR: [main fur color, use specific names like 'ginger orange', 'cream', 'jet black', 'silver tabby']\n"
+        "PATTERN: [solid|tabby|tuxedo|bicolor|tricolor|spotted|brindle|etc., describe distribution]\n"
+        "EYE_COLOR: [be specific: amber, copper, emerald green, sky blue, hazel, etc.]\n"
+        "EAR_SHAPE: [erect triangular / folded / floppy / pricked / etc.]\n"
+        "DISTINCTIVE_MARKS: [list any unique markings: white chest patch, ear notch, scar, "
+        "asymmetric patches, blaze on forehead, white socks on N paws, etc. Be precise about LOCATION.]"
+    )
+
+    # ---- Pass 2: 面部细节 + 表情 ----
+    p2 = (
+        "Focus ONLY on this pet's face. In one paragraph (60-100 words, English), describe in extreme "
+        "detail: eye shape and exact color, eye expression (alert/sleepy/curious/calm), nose color and "
+        "shape, mouth position, whisker visibility, fur on the face (any color variations around eyes, "
+        "muzzle, forehead), and any markings ONLY on the face. Be precise and visual; this will be used "
+        "by an AI image generator. Do not describe surroundings."
+    )
+
+    parts = {}
     try:
-        with open(image_path, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode("ascii")
-        ext = image_path.rsplit(".", 1)[-1].lower()
-        mime = "jpeg" if ext in ("jpg", "jpeg") else ext
-        text = (
-            "You are helping generate a memorial portrait of someone's beloved pet. "
-            "Look at this photo and write a precise visual description in 2-3 sentences, English only. "
-            "Cover: species and breed, primary fur color and pattern, eye color, distinctive markings, "
-            "body shape, ear shape, expression. Do NOT include any people, only describe the pet itself. "
-            "Output the description directly, no preamble."
-        )
-        msgs = [{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": text},
-                {"type": "image_url", "image_url": {"url": f"data:image/{mime};base64,{b64}"}},
-            ],
-        }]
-        out = chat(msgs, model=VISION_MODEL, max_tokens=300, temperature=0.3)
-        return (out or "").strip()
+        out1 = chat(_image_msg(image_path, p1), model=VISION_MODEL, max_tokens=400, temperature=0.2)
+        parts["structured"] = (out1 or "").strip()
     except Exception as e:
-        print(f"[ai.describe_pet_photo] error: {e}")
+        print(f"[describe_pet_photo p1] {e}")
+    try:
+        out2 = chat(_image_msg(image_path, p2), model=VISION_MODEL, max_tokens=300, temperature=0.3)
+        parts["face"] = (out2 or "").strip()
+    except Exception as e:
+        print(f"[describe_pet_photo p2] {e}")
+
+    if not parts:
         return None
+
+    # 组装：结构化字段在前（明确细节），自然段在后（氛围）
+    composed = []
+    if "structured" in parts:
+        composed.append("Pet identification:\n" + parts["structured"])
+    if "face" in parts:
+        composed.append("Face details:\n" + parts["face"])
+    return "\n\n".join(composed)
 
 
 def write_letter_llm(pet_name, owner_name, pet_type, personality, status, message):
