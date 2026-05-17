@@ -303,6 +303,49 @@ def describe_pet_photo(image_path):
     return "\n\n".join(composed)
 
 
+def chat_with_pet(pet, user_message, history=None):
+    """以宠物口吻跟主人聊天。
+    pet: 宠物档案 dict（name/type/personality/owner_name/scene 等）
+    user_message: 用户这次说的话
+    history: [{role:'user'|'pet', text:'...'}, ...] 最近若干轮
+    返回宠物回复字符串。失败返回兜底字符串。
+    """
+    name = pet.get("name") or "毛孩子"
+    owner = pet.get("owner_name") or "你"
+    p_type = pet.get("type") or "宠物"
+    personality = pet.get("personality") or "温柔"
+    scene = pet.get("scene") or "记忆花园"
+    if not is_enabled():
+        return f"{name}静静地看着你，眼神温柔。"
+
+    system = (
+        f"你是一只{p_type}，名字叫『{name}』。你和你的主人『{owner}』感情很深。"
+        f"你性格：{personality}。你现在住在『{scene}』里。\n\n"
+        "规则：\n"
+        f"- 永远用第一人称（以{name}的口吻）和主人对话，称呼主人为「{owner}」或「主人」\n"
+        "- 用中文，温柔、自然、像一只真的宠物在表达感受\n"
+        "- 每次回复 1-3 句话，不要写长段落，不要解释自己是 AI\n"
+        "- 可以描写一些具体动作或画面（蹭蹭主人、追蝴蝶、晒太阳、喝水等）\n"
+        "- 不要使用「复活/灵魂/重生/死亡/离开」这类敏感词\n"
+        "- 不要每句话都说『我爱你』；情感自然流露，不煽情\n"
+        "- 如果主人问你不知道的事，可以撒娇说『我也不知道呀～』而不是编造\n"
+        "- 偶尔可以引用你们之间过去的对话片段，让主人感到你记得"
+    )
+
+    msgs = [{"role": "user", "content": system + "\n\n（接下来是对话，请你以宠物身份回复主人最后一句话）"}]
+    # 把历史塞进来：user 角色 = 主人；assistant 角色 = 宠物
+    for h in (history or [])[-20:]:
+        role = "assistant" if h.get("role") == "pet" else "user"
+        msgs.append({"role": role, "content": h.get("text", "")})
+    msgs.append({"role": "user", "content": user_message})
+
+    try:
+        return chat(msgs, model=TEXT_MODEL, max_tokens=300, temperature=0.85).strip()
+    except Exception as e:
+        print(f"[ai.chat_with_pet] error: {e}")
+        return f"{name}歪头看了看你，没听清楚。"
+
+
 def write_letter_llm(pet_name, owner_name, pet_type, personality, status, message):
     """用 LLM 写一封温柔的宠物来信。失败返回 None（调用方降级到模板）。"""
     if not is_enabled():

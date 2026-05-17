@@ -30,6 +30,16 @@
 </div>
 
 <div class="card">
+  <h2>💬 跟 {{ pet.name }} 说说话</h2>
+  <p class="muted">{{ pet.name }}会记得你们之前聊过的话题。</p>
+  <div id="chat-box" class="chat-box"></div>
+  <div class="chat-input-row">
+    <input id="chat-input" type="text" placeholder="想对 {{ pet.name }} 说点什么…" maxlength="200">
+    <button class="btn small" id="chat-send" onclick="chatSend()">发送</button>
+  </div>
+</div>
+
+<div class="card">
   <h2>💌 留言墙</h2>
   <div id="wall" class="wall">
     {% if pet.messages %}
@@ -70,6 +80,69 @@
 <script>
 const PET_ID = "{{ pet.id }}";
 const PET_NAME = "{{ pet.name|e }}";
+
+function escapeHtml(s) {
+  return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function appendChat(role, text) {
+  const box = document.getElementById("chat-box");
+  const wrap = document.createElement("div");
+  wrap.className = "chat-msg " + (role === "pet" ? "pet" : "user");
+  wrap.innerHTML = '<div class="bubble">' + escapeHtml(text) + '</div>';
+  box.appendChild(wrap);
+  box.scrollTop = box.scrollHeight;
+  return wrap;
+}
+
+function loadChatHistory() {
+  fetch("/garden/" + PET_ID + "/chat/history")
+    .then(r => r.json())
+    .then(d => {
+      const box = document.getElementById("chat-box");
+      box.innerHTML = "";
+      if (!d.history || d.history.length === 0) {
+        appendChat("pet", PET_NAME + "歪着头看着你，等你开口～");
+        return;
+      }
+      d.history.forEach(m => appendChat(m.role, m.text));
+    });
+}
+
+function chatSend() {
+  const input = document.getElementById("chat-input");
+  const btn = document.getElementById("chat-send");
+  const text = (input.value || "").trim();
+  if (!text) return;
+  input.value = "";
+  appendChat("user", text);
+  // 占位 typing
+  const typing = appendChat("pet", "…");
+  typing.classList.add("typing");
+  btn.disabled = true;
+  fetch("/garden/" + PET_ID + "/chat", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({message: text}),
+  }).then(r => r.json()).then(d => {
+    typing.remove();
+    if (d.error) { appendChat("pet", "（呜…我没听清）"); return; }
+    appendChat("pet", d.reply);
+    if (d.stats) {
+      document.getElementById("stat-happy").innerText = d.stats.happy;
+      document.getElementById("stat-company").innerText = d.stats.company;
+      document.getElementById("stat-miss").innerText = d.stats.miss;
+    }
+  }).catch(() => { typing.remove(); appendChat("pet", "（网络好像不太好）"); })
+    .finally(() => { btn.disabled = false; input.focus(); });
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  loadChatHistory();
+  document.getElementById("chat-input").addEventListener("keydown", function(e) {
+    if (e.key === "Enter") { e.preventDefault(); chatSend(); }
+  });
+});
 
 function copyShare() {
   const i = document.getElementById("share-url");

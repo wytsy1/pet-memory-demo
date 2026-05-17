@@ -433,6 +433,45 @@ def garden(pet_id):
     return render_template("garden.html", pet=pet, share_url=share_url)
 
 
+@app.route("/garden/<pet_id>/chat", methods=["POST"])
+def garden_chat(pet_id):
+    pet = get_pet(pet_id)
+    if not pet:
+        return jsonify({"error": "pet not found"}), 404
+    data = request.get_json(silent=True) or {}
+    user_message = (data.get("message") or "").strip()
+    if not user_message:
+        return jsonify({"error": "empty message"}), 400
+
+    history = pet.get("chat_history", [])
+    reply = ai.chat_with_pet(pet, user_message, history=history)
+
+    # 追加到历史，截断保留最近 40 条（即 20 轮）
+    pets = load_pets()
+    p = pets.get(pet_id)
+    if p is not None:
+        ch = p.setdefault("chat_history", [])
+        ch.append({"role": "user", "text": user_message, "at": now_str()})
+        ch.append({"role": "pet", "text": reply, "at": now_str()})
+        p["chat_history"] = ch[-40:]
+        # 聊天本身也算"陪伴" → 略微提升数值
+        st = p.setdefault("stats", {"happy": 60, "company": 50, "miss": 70})
+        st["happy"] = min(100, st.get("happy", 60) + 3)
+        st["company"] = min(100, st.get("company", 50) + 5)
+        st["miss"] = max(0, st.get("miss", 70) - 2)
+        save_pets(pets)
+
+    return jsonify({"reply": reply, "stats": p.get("stats") if p else None})
+
+
+@app.route("/garden/<pet_id>/chat/history", methods=["GET"])
+def garden_chat_history(pet_id):
+    pet = get_pet(pet_id)
+    if not pet:
+        return jsonify({"history": []})
+    return jsonify({"history": pet.get("chat_history", [])})
+
+
 @app.route("/garden/<pet_id>/act", methods=["POST"])
 def garden_act(pet_id):
     pet = get_pet(pet_id)

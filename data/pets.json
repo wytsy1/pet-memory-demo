@@ -15,9 +15,9 @@
       "uploads/pets/1779018606418_4c7012c0.png"
     ],
     "stats": {
-      "happy": 71,
-      "company": 65,
-      "miss": 63
+      "happy": 77,
+      "company": 75,
+      "miss": 59
     },
     "messages": [
       {
@@ -27,6 +27,28 @@
     ],
     "ai_images": [
       "/uploads/ai/1779018691651_preview.png"
+    ],
+    "chat_history": [
+      {
+        "role": "user",
+        "text": "hello",
+        "at": "2026-05-17 20:29:17"
+      },
+      {
+        "role": "pet",
+        "text": "小满～你回来啦！我刚才在窝里打了个小盹，听到你的声音，尾巴一下子就翘起来了～",
+        "at": "2026-05-17 20:29:17"
+      },
+      {
+        "role": "user",
+        "text": "do you remember what i just said",
+        "at": "2026-05-17 20:29:21"
+      },
+      {
+        "role": "pet",
+        "text": "你刚刚跟我说了「hello」呀～我可是竖着耳朵听的呢，一个字都没漏掉哦。",
+        "at": "2026-05-17 20:29:21"
+      }
     ]
   }
 }
