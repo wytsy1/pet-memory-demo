@@ -1,38 +1,112 @@
 {% extends "base.html" %}
-{% block title %}记忆花园 · 毛孩子记忆馆{% endblock %}
+{% block title %}{{ pet.name }}的记忆花园 · 毛孩子记忆馆{% endblock %}
 {% block content %}
 <div class="card garden-wrap">
   <div class="garden-pet">🐾</div>
-  <h2 style="margin:0;">{{ pet_name }}的记忆花园</h2>
-  <p class="muted">{{ pet_name }}今天在记忆花园里晒太阳，它看起来很安心。</p>
+  <h2 style="margin:0;">{{ pet.name }}的记忆花园</h2>
+  <p class="muted">
+    {{ pet.name }}在记忆花园里
+    {% if pet.scene %}{{ pet.scene }}{% else %}晒太阳{% endif %}，看起来很安心。
+  </p>
 
   <div class="stats">
-    <div class="stat"><div class="num" id="stat-happy">60</div><div class="label">开心值</div></div>
-    <div class="stat"><div class="num" id="stat-company">50</div><div class="label">陪伴值</div></div>
-    <div class="stat"><div class="num" id="stat-miss">70</div><div class="label">想念值</div></div>
+    <div class="stat"><div class="num" id="stat-happy">{{ pet.stats.happy }}</div><div class="label">开心值</div></div>
+    <div class="stat"><div class="num" id="stat-company">{{ pet.stats.company }}</div><div class="label">陪伴值</div></div>
+    <div class="stat"><div class="num" id="stat-miss">{{ pet.stats.miss }}</div><div class="label">想念值</div></div>
   </div>
 
   <div class="actions-row">
-    <button class="btn small" onclick="gardenAct('feed', '{{ pet_name }}')">🐟 喂一份小鱼干</button>
-    <button class="btn small accent" onclick="gardenAct('pet', '{{ pet_name }}')">🤲 摸摸头</button>
-    <button class="btn small" onclick="gardenAct('play', '{{ pet_name }}')">🎾 陪它玩一会儿</button>
+    <button class="btn small" onclick="gardenAct('feed')">🐟 喂一份小鱼干</button>
+    <button class="btn small accent" onclick="gardenAct('pet')">🤲 摸摸头</button>
+    <button class="btn small" onclick="gardenAct('play')">🎾 陪它玩一会儿</button>
   </div>
 
-  <div id="garden-feedback" class="garden-feedback">点击上面的按钮，陪{{ pet_name }}待一会儿吧～</div>
+  <div id="garden-feedback" class="garden-feedback">点击上面的按钮，陪{{ pet.name }}待一会儿吧～</div>
 
   <div style="margin-top:16px;display:flex;gap:8px;">
-    <input id="say-input" type="text" placeholder="写一句想对它说的话" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid #eaddcd;">
-    <button class="btn small ghost" onclick="gardenSay('{{ pet_name }}')">说给它听</button>
+    <input id="say-input" type="text" placeholder="写一句想对它说的话（会留在花园里）" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid #eaddcd;">
+    <button class="btn small ghost" onclick="gardenSay()">说给它听</button>
   </div>
-
-  <div id="wall" class="wall"></div>
 </div>
 
 <div class="card">
-  <h2>相册区</h2>
-  <p class="muted">上传素材后，这里会显示和 {{ pet_name }} 的纪念图片。</p>
-  <div style="text-align:center;margin-top:10px;">
-    <a class="btn ghost" href="{{ url_for('submit') }}">上传素材</a>
+  <h2>💌 留言墙</h2>
+  <div id="wall" class="wall">
+    {% if pet.messages %}
+      {% for m in pet.messages %}
+        <div class="msg"><span class="muted" style="font-size:11px;">{{ m.at }}</span><br>{{ m.text }}</div>
+      {% endfor %}
+    {% else %}
+      <div class="muted">还没人留言。第一句话留给 {{ pet.name }} 吧。</div>
+    {% endif %}
   </div>
 </div>
+
+<div class="card">
+  <h2>📷 {{ pet.name }}的相册</h2>
+  {% if pet.ai_images or pet.uploaded_photos %}
+    <div class="album">
+      {% for url in pet.ai_images %}
+        <div class="album-item"><img src="{{ url }}" alt="AI 生图"><div class="album-tag">AI 生成</div></div>
+      {% endfor %}
+      {% for path in pet.uploaded_photos %}
+        <div class="album-item"><img src="/{{ path }}" alt="上传照片"><div class="album-tag accent">原照</div></div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="muted">还没有照片。<a href="{{ url_for('play') }}">去生成一张</a> 或者 <a href="{{ url_for('submit') }}">上传你和它的照片</a>。</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>🔗 分享这座花园</h2>
+  <p class="muted">把链接发给家人朋友，他们也能来这里陪 {{ pet.name }}。</p>
+  <div style="display:flex;gap:8px;margin-top:8px;">
+    <input id="share-url" type="text" readonly value="{{ share_url }}" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid #eaddcd;background:#fffdf9;font-size:13px;">
+    <button class="btn small" onclick="copyShare()">复制</button>
+  </div>
+</div>
+
+<script>
+const PET_ID = "{{ pet.id }}";
+const PET_NAME = "{{ pet.name|e }}";
+
+function copyShare() {
+  const i = document.getElementById("share-url");
+  i.select(); i.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(i.value).then(() => {
+    document.getElementById("garden-feedback").innerText = "链接已复制 ✓ 可以发给朋友啦。";
+  });
+}
+
+function gardenAct(action, extra) {
+  fetch("/garden/" + PET_ID + "/act", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({action, message: extra || ""}),
+  }).then(r => r.json()).then(d => {
+    if (d.error) { alert(d.error); return; }
+    document.getElementById("garden-feedback").innerText = d.text;
+    document.getElementById("stat-happy").innerText = d.stats.happy;
+    document.getElementById("stat-company").innerText = d.stats.company;
+    document.getElementById("stat-miss").innerText = d.stats.miss;
+  });
+}
+
+function gardenSay() {
+  const input = document.getElementById("say-input");
+  const text = (input.value || "").trim();
+  if (!text) { alert("写一句想说的话吧～"); return; }
+  // 立即在墙上插一条乐观更新
+  const wall = document.getElementById("wall");
+  const msg = document.createElement("div");
+  msg.className = "msg";
+  msg.innerHTML = '<span class="muted" style="font-size:11px;">刚刚</span><br>' +
+    text.replace(/</g, "&lt;");
+  if (wall.querySelector(".muted") && wall.children.length === 1) wall.innerHTML = "";
+  wall.prepend(msg);
+  input.value = "";
+  gardenAct("say", text);
+}
+</script>
 {% endblock %}

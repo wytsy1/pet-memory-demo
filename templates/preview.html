@@ -94,7 +94,7 @@
 </div>
 
 <div style="text-align:center;margin-top:24px;">
-  <a class="btn accent" href="{{ url_for('garden', pet_name=pet_name) }}">进入记忆花园</a>
+  <a class="btn accent" href="{{ url_for('garden', pet_id=pet_id) if pet_id else url_for('garden_redirect') }}">进入记忆花园</a>
   <a class="btn" href="{{ url_for('submit') }}">提交素材制作高清版</a>
 </div>
 {% endblock %}

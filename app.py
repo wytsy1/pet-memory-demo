@@ -31,6 +31,7 @@ OWNER_UPLOAD_DIR = os.path.join(UPLOAD_DIR, "owners")
 SUBMISSIONS_FILE = os.path.join(DATA_DIR, "submissions.json")
 CREATORS_FILE = os.path.join(DATA_DIR, "creators.json")
 SAMPLES_FILE = os.path.join(DATA_DIR, "samples.json")
+PETS_FILE = os.path.join(DATA_DIR, "pets.json")
 
 ALLOWED_EXTS = {"png", "jpg", "jpeg", "gif", "webp"}
 
@@ -65,23 +66,58 @@ def ensure_dirs():
         (SUBMISSIONS_FILE, []),
         (CREATORS_FILE, []),
         (SAMPLES_FILE, []),
+        (PETS_FILE, {}),
     ]:
         if not os.path.exists(f):
             with open(f, "w", encoding="utf-8") as fp:
                 json.dump(default, fp, ensure_ascii=False, indent=2)
 
 
-def load_json(path):
+def load_json(path, default=None):
     try:
         with open(path, "r", encoding="utf-8") as fp:
             return json.load(fp)
     except Exception:
-        return []
+        return default if default is not None else []
 
 
 def save_json(path, data):
     with open(path, "w", encoding="utf-8") as fp:
         json.dump(data, fp, ensure_ascii=False, indent=2)
+
+
+# ---------- 宠物持久化 ----------
+
+def load_pets():
+    return load_json(PETS_FILE, default={})
+
+
+def save_pets(pets):
+    save_json(PETS_FILE, pets)
+
+
+def get_pet(pet_id):
+    return load_pets().get(pet_id)
+
+
+def upsert_pet(pet_id, data):
+    pets = load_pets()
+    if pet_id in pets:
+        pets[pet_id].update(data)
+    else:
+        pets[pet_id] = data
+    save_pets(pets)
+    return pets[pet_id]
+
+
+def append_pet_field(pet_id, field, value):
+    pets = load_pets()
+    if pet_id not in pets:
+        return None
+    pets[pet_id].setdefault(field, [])
+    pets[pet_id][field].append(value)
+    save_pets(pets)
+    return pets[pet_id]
 
 
 def allowed_file(filename):
@@ -227,14 +263,58 @@ def preview():
     scene = request.form.get("scene", "")
     pet_desc = request.form.get("pet_desc", "").strip()
 
-    # 接收并保存宠物照（可选，用于人工高保真版 + 模型支持时作为输入）
     pet_files = request.files.getlist("pet_photos")
     pet_paths = save_uploaded_files(pet_files, PET_UPLOAD_DIR, "pets")
+
+    # 用 vision LLM 描述用户上传的第一张照片，作为生图 prompt 的主体
+    vision_desc = None
+    if pet_paths and ai.is_enabled():
+        try:
+            abs_first = os.path.join(BASE_DIR, pet_paths[0])
+            vision_desc = ai.describe_pet_photo(abs_first)
+            if vision_desc:
+                print(f"[preview] vision_desc: {vision_desc[:120]}")
+        except Exception as e:
+            print(f"[preview] vision describe failed: {e}")
 
     title, body = gen_preview_text(
         play_type, pet_name, owner_name, scene, personality, message
     )
-    letter = gen_letter(pet_name, owner_name, personality, message)
+
+    # LLM 写宠物来信，失败降级到模板
+    letter = None
+    if ai.is_enabled():
+        letter = ai.write_letter_llm(
+            pet_name=pet_name, owner_name=owner_name, pet_type=pet_type,
+            personality=personality, status=pet_status, message=message,
+        )
+    if not letter:
+        letter = gen_letter(pet_name, owner_name, personality, message)
+
+    # 创建/复用宠物记录
+    pet_id = session.get("pet_id") or f"pet_{int(time.time()*1000)}_{uuid.uuid4().hex[:6]}"
+    pet_record = {
+        "id": pet_id,
+        "name": pet_name or "毛孩子",
+        "type": pet_type,
+        "personality": personality,
+        "status": pet_status,
+        "owner_name": owner_name or "你",
+        "scene": scene,
+        "message": message,
+        "pet_desc": pet_desc,
+        "vision_desc": vision_desc,
+        "created_at": now_str(),
+        "uploaded_photos": pet_paths,
+        # 不覆盖现有的 stats/messages/ai_images
+    }
+    existing = get_pet(pet_id) or {}
+    pet_record.setdefault("stats", existing.get("stats", {"happy": 60, "company": 50, "miss": 70}))
+    pet_record.setdefault("messages", existing.get("messages", []))
+    pet_record.setdefault("ai_images", existing.get("ai_images", []))
+    pet_record["uploaded_photos"] = list(set(existing.get("uploaded_photos", []) + pet_paths))
+    upsert_pet(pet_id, pet_record)
+    session["pet_id"] = pet_id
 
     # 提交 AI 生图任务（异步，返回 task_id 给前端轮询）
     ai_task_id = None
@@ -249,9 +329,12 @@ def preview():
                 scene=scene,
                 extra_desc=pet_desc,
                 message=message,
+                vision_desc=vision_desc,
             )
             abs_pet_paths = [os.path.join(BASE_DIR, p) for p in pet_paths] if pet_paths else None
             ai_task_id = ai.submit_generation(prompt, input_image_paths=abs_pet_paths)
+            # 把 task_id 和 pet_id 绑起来，轮询完成后写入相册
+            _task_to_pet[ai_task_id] = pet_id
         except Exception as e:
             ai_error = str(e)
             print(f"[preview] AI submit failed: {e}")
@@ -282,10 +365,13 @@ def preview():
         ai_task_id=ai_task_id,
         ai_error=ai_error,
         ai_enabled=ai.is_enabled(),
+        vision_desc=vision_desc,
+        pet_id=pet_id,
     )
 
 
 _task_cache = {}  # task_id -> local image url
+_task_to_pet = {}  # task_id -> pet_id（用于完成后写入相册）
 
 
 @app.route("/preview/poll/<task_id>")
@@ -312,6 +398,13 @@ def preview_poll(task_id):
                 rel = os.path.relpath(local_path, BASE_DIR).replace("\\", "/")
                 image_url = "/" + rel
                 _task_cache[task_id] = image_url
+                # 写入对应宠物的相册
+                pet_id = _task_to_pet.get(task_id)
+                if pet_id:
+                    try:
+                        append_pet_field(pet_id, "ai_images", image_url)
+                    except Exception as e:
+                        print(f"[poll] append_pet_field failed: {e}")
                 return jsonify({"status": "completed", "image_url": image_url})
             return jsonify({"status": "completed", "image_url": remote_url})
         if status == "failed":
@@ -322,24 +415,57 @@ def preview_poll(task_id):
 
 
 @app.route("/garden")
-def garden():
-    pet_name = request.args.get("pet_name") or session.get("last_preview", {}).get("pet_name") or "毛孩子"
-    return render_template("garden.html", pet_name=pet_name)
+def garden_redirect():
+    pet_id = session.get("pet_id")
+    if pet_id and get_pet(pet_id):
+        return redirect(url_for("garden", pet_id=pet_id))
+    flash("先去玩法页创建一只毛孩子吧～")
+    return redirect(url_for("play"))
 
 
-@app.route("/garden/act", methods=["POST"])
-def garden_act():
+@app.route("/garden/<pet_id>")
+def garden(pet_id):
+    pet = get_pet(pet_id)
+    if not pet:
+        flash("找不到这只毛孩子的记忆花园，去创建一个吧～")
+        return redirect(url_for("play"))
+    share_url = request.host_url.rstrip("/") + url_for("garden", pet_id=pet_id)
+    return render_template("garden.html", pet=pet, share_url=share_url)
+
+
+@app.route("/garden/<pet_id>/act", methods=["POST"])
+def garden_act(pet_id):
+    pet = get_pet(pet_id)
+    if not pet:
+        return jsonify({"error": "pet not found"}), 404
     data = request.get_json(silent=True) or {}
     action = data.get("action", "")
-    pet_name = data.get("pet_name", "毛孩子")
+    text_msg = (data.get("message") or "").strip()
+    name = pet.get("name", "毛孩子")
     feedback_map = {
-        "feed": (f"{pet_name}开心地吃了起来。", {"happy": 8, "company": 4, "miss": -2}),
-        "pet": (f"{pet_name}眯起眼睛蹭了蹭你。", {"happy": 6, "company": 6, "miss": -3}),
-        "play": (f"你陪{pet_name}玩了一会儿，它尾巴摇得很开心。", {"happy": 10, "company": 10, "miss": -5}),
-        "say": (f"{pet_name}静静地听完了你想说的话。", {"happy": 4, "company": 8, "miss": -4}),
+        "feed": (f"{name}开心地吃了起来。", {"happy": 8, "company": 4, "miss": -2}),
+        "pet": (f"{name}眯起眼睛蹭了蹭你。", {"happy": 6, "company": 6, "miss": -3}),
+        "play": (f"你陪{name}玩了一会儿，它尾巴摇得很开心。", {"happy": 10, "company": 10, "miss": -5}),
+        "say": (f"{name}静静地听完了你想说的话。", {"happy": 4, "company": 8, "miss": -4}),
     }
-    text, delta = feedback_map.get(action, (f"{pet_name}看了你一眼。", {"happy": 1, "company": 1, "miss": 0}))
-    return jsonify({"text": text, "delta": delta})
+    text, delta = feedback_map.get(action, (f"{name}看了你一眼。", {"happy": 1, "company": 1, "miss": 0}))
+
+    pets = load_pets()
+    p = pets.get(pet_id)
+    if not p:
+        return jsonify({"error": "pet not found"}), 404
+    stats = p.setdefault("stats", {"happy": 60, "company": 50, "miss": 70})
+    for k, v in delta.items():
+        stats[k] = max(0, min(100, stats.get(k, 50) + v))
+    if action == "say" and text_msg:
+        p.setdefault("messages", []).insert(0, {
+            "text": text_msg,
+            "at": now_str(),
+        })
+        # 最多保留 50 条
+        p["messages"] = p["messages"][:50]
+    save_pets(pets)
+    return jsonify({"text": text, "delta": delta, "stats": stats})
 
 
 @app.route("/submit", methods=["GET", "POST"])

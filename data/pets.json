@@ -1,0 +1,32 @@
+{
+  "pet_1779018631968_c038b1": {
+    "id": "pet_1779018631968_c038b1",
+    "name": "����",
+    "type": "è",
+    "personality": "����",
+    "status": "�����",
+    "owner_name": "С��",
+    "scene": "��������",
+    "message": "",
+    "pet_desc": "",
+    "vision_desc": "A medium-sized spitz-type dog, likely an Icelandic Sheepdog or Finnish Spitz mix, with a thick double coat in warm reddish-gold and cream tones, lighter fur along the muzzle, chest, and paws. The dog has soft brown almond-shaped eyes, a black nose, and upright triangular ears framing a fox-like face. It rests its head on a plush cream blanket with a calm, gentle, slightly wistful expression.",
+    "created_at": "2026-05-17 19:50:31",
+    "uploaded_photos": [
+      "uploads/pets/1779018606418_4c7012c0.png"
+    ],
+    "stats": {
+      "happy": 71,
+      "company": 65,
+      "miss": 63
+    },
+    "messages": [
+      {
+        "text": "miss you",
+        "at": "2026-05-17 19:52:32"
+      }
+    ],
+    "ai_images": [
+      "/uploads/ai/1779018691651_preview.png"
+    ]
+  }
+}
