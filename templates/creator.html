@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}宠物博主共创计划 · 毛孩子记忆馆{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>宠物博主共创计划</h1>
+  <p class="sub">一起做一场「如果我和毛孩子一起变老」的粉丝共创活动。</p>
+</section>
+
+<div class="card">
+  <h2>合作流程</h2>
+  <ol>
+    <li>你发布一条体验内容（视频/笔记）</li>
+    <li>在评论区征集粉丝投稿</li>
+    <li>我们免费制作前 3-5 组粉丝样片</li>
+    <li>粉丝想要高清定制，可付费制作</li>
+    <li>后续订单给博主分成</li>
+  </ol>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h3>我们负责</h3>
+    <ul>
+      <li>样片制作</li>
+      <li>订单记录</li>
+      <li>分成统计</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>博主负责</h3>
+    <ul>
+      <li>发布体验内容</li>
+      <li>引导粉丝参与</li>
+      <li>评论区互动</li>
+      <li>筛选粉丝投稿</li>
+    </ul>
+  </div>
+</div>
+
+<div class="card">
+  <h2>分成机制</h2>
+  <div class="packages">
+    <div class="pkg"><div class="price">29.9 元</div><div class="desc">博主分 20%</div></div>
+    <div class="pkg"><div class="price">99 元</div><div class="desc">博主分 25%</div></div>
+    <div class="pkg"><div class="price">199 / 299 元</div><div class="desc">博主分 30%</div></div>
+  </div>
+  <p class="muted" style="margin-top:12px;">每单返佣 20%-30%，具体按合作方式确认。</p>
+</div>
+
+<form class="card" method="POST" action="{{ url_for('creator') }}">
+  <h2>博主申请</h2>
+  <div class="form-row">
+    <label>博主昵称</label>
+    <input type="text" name="nickname" required>
+  </div>
+  <div class="form-row">
+    <label>平台</label>
+    <div class="chips">
+      {% for p in ["小红书","抖音","视频号","B站","其他"] %}
+        <label class="chip"><input type="radio" name="platform" value="{{ p }}" {% if loop.first %}checked{% endif %}>{{ p }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="form-row">
+    <label>主页链接</label>
+    <input type="url" name="profile_url" placeholder="https://...">
+  </div>
+  <div class="form-row">
+    <label>粉丝数</label>
+    <input type="text" name="followers" placeholder="比如：12000">
+  </div>
+  <div class="form-row">
+    <label>联系方式</label>
+    <input type="text" name="contact" required>
+  </div>
+  <div class="form-row">
+    <label>是否愿意先做体验样片</label>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="wants_sample" value="yes" checked>愿意</label>
+      <label class="chip"><input type="radio" name="wants_sample" value="no">先聊聊</label>
+    </div>
+  </div>
+  <button class="btn block" type="submit">提交合作申请</button>
+</form>
+{% endblock %}

@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+uploads/pets/*
+uploads/owners/*
+!uploads/pets/.gitkeep
+!uploads/owners/.gitkeep
+data/submissions.json
+data/creators.json
+.venv/

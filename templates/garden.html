@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}记忆花园 · 毛孩子记忆馆{% endblock %}
+{% block content %}
+<div class="card garden-wrap">
+  <div class="garden-pet">🐾</div>
+  <h2 style="margin:0;">{{ pet_name }}的记忆花园</h2>
+  <p class="muted">{{ pet_name }}今天在记忆花园里晒太阳，它看起来很安心。</p>
+
+  <div class="stats">
+    <div class="stat"><div class="num" id="stat-happy">60</div><div class="label">开心值</div></div>
+    <div class="stat"><div class="num" id="stat-company">50</div><div class="label">陪伴值</div></div>
+    <div class="stat"><div class="num" id="stat-miss">70</div><div class="label">想念值</div></div>
+  </div>
+
+  <div class="actions-row">
+    <button class="btn small" onclick="gardenAct('feed', '{{ pet_name }}')">🐟 喂一份小鱼干</button>
+    <button class="btn small accent" onclick="gardenAct('pet', '{{ pet_name }}')">🤲 摸摸头</button>
+    <button class="btn small" onclick="gardenAct('play', '{{ pet_name }}')">🎾 陪它玩一会儿</button>
+  </div>
+
+  <div id="garden-feedback" class="garden-feedback">点击上面的按钮，陪{{ pet_name }}待一会儿吧～</div>
+
+  <div style="margin-top:16px;display:flex;gap:8px;">
+    <input id="say-input" type="text" placeholder="写一句想对它说的话" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid #eaddcd;">
+    <button class="btn small ghost" onclick="gardenSay('{{ pet_name }}')">说给它听</button>
+  </div>
+
+  <div id="wall" class="wall"></div>
+</div>
+
+<div class="card">
+  <h2>相册区</h2>
+  <p class="muted">上传素材后，这里会显示和 {{ pet_name }} 的纪念图片。</p>
+  <div style="text-align:center;margin-top:10px;">
+    <a class="btn ghost" href="{{ url_for('submit') }}">上传素材</a>
+  </div>
+</div>
+{% endblock %}

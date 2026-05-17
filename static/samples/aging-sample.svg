@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="100%" height="240">
+  <defs>
+    <linearGradient id="bg1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFE6D6"/>
+      <stop offset="100%" stop-color="#FBD2BD"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="240" rx="20" fill="url(#bg1)"/>
+  <circle cx="120" cy="150" r="46" fill="#fff"/>
+  <text x="120" y="162" font-size="38" text-anchor="middle">🧓</text>
+  <circle cx="240" cy="160" r="36" fill="#fff"/>
+  <text x="240" y="172" font-size="32" text-anchor="middle">🐶</text>
+  <circle cx="320" cy="60" r="22" fill="#fff" opacity="0.8"/>
+  <text x="200" y="40" font-size="16" text-anchor="middle" fill="#7a5a4a" font-family="PingFang SC, sans-serif">一起，慢慢变老</text>
+</svg>

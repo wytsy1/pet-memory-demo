@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}预览 · 毛孩子记忆馆{% endblock %}
+{% block content %}
+<div class="card">
+  <p class="muted">玩法：{{ play_label }}</p>
+
+  {% if ai_task_id %}
+    <div id="ai-loading" class="preview-art" style="padding:40px 18px;">
+      <div class="spinner"></div>
+      <div style="margin-top:14px;color:#7a6b63;">AI 正在为 {{ pet_name }} 温柔作画 <span id="ai-progress">0</span>%</div>
+      <div class="muted" style="margin-top:6px;font-size:12px;">约需要 30-90 秒，请稍等～</div>
+    </div>
+    <div id="ai-result" class="preview-art" style="display:none;">
+      <img id="ai-image" src="" alt="AI 生成的纪念图" style="border-radius:14px;max-width:100%;">
+    </div>
+    <div id="ai-fallback" class="preview-art" style="display:none;">
+      {% if play_type == 'aging' %}
+        <img src="{{ url_for('static', filename='samples/aging-sample.svg') }}" alt="样片">
+      {% elif play_type == 'memorial' %}
+        <img src="{{ url_for('static', filename='samples/memorial-photo.svg') }}" alt="样片">
+      {% else %}
+        <img src="{{ url_for('static', filename='samples/garden-sample.svg') }}" alt="样片">
+      {% endif %}
+      <div class="muted" style="margin-top:8px;font-size:12px;">AI 暂不可用，先用样片预览。</div>
+    </div>
+    <script>
+      (function() {
+        const taskId = "{{ ai_task_id }}";
+        const loading = document.getElementById("ai-loading");
+        const result = document.getElementById("ai-result");
+        const fallback = document.getElementById("ai-fallback");
+        const img = document.getElementById("ai-image");
+        const prog = document.getElementById("ai-progress");
+        let tries = 0;
+        const maxTries = 45;  // 45 * 4s = 180s
+        const tick = () => {
+          tries++;
+          fetch("/preview/poll/" + taskId).then(r => r.json()).then(d => {
+            if (d.status === "completed" && d.image_url) {
+              img.src = d.image_url;
+              loading.style.display = "none";
+              result.style.display = "block";
+            } else if (d.status === "processing") {
+              if (typeof d.progress === "number") prog.innerText = d.progress;
+              if (tries < maxTries) setTimeout(tick, 4000);
+              else { loading.style.display = "none"; fallback.style.display = "block"; }
+            } else {
+              console.warn("AI poll:", d);
+              if (tries < maxTries) setTimeout(tick, 4000);
+              else { loading.style.display = "none"; fallback.style.display = "block"; }
+            }
+          }).catch(e => {
+            console.error(e);
+            if (tries < maxTries) setTimeout(tick, 4000);
+            else { loading.style.display = "none"; fallback.style.display = "block"; }
+          });
+        };
+        setTimeout(tick, 3000);
+      })();
+    </script>
+  {% else %}
+    <div class="preview-art">
+      {% if play_type == 'aging' %}
+        <img src="{{ url_for('static', filename='samples/aging-sample.svg') }}" alt="一起变老样片">
+      {% elif play_type == 'memorial' %}
+        <img src="{{ url_for('static', filename='samples/memorial-photo.svg') }}" alt="纪念合照样片">
+      {% elif play_type == 'letter' %}
+        <img src="{{ url_for('static', filename='samples/letter-card.svg') }}" alt="宠物来信样片">
+      {% else %}
+        <img src="{{ url_for('static', filename='samples/garden-sample.svg') }}" alt="记忆花园样片">
+      {% endif %}
+      {% if ai_error %}<div class="muted" style="margin-top:8px;font-size:12px;">AI 暂不可用：{{ ai_error[:80] }}</div>{% endif %}
+    </div>
+  {% endif %}
+
+  <div class="preview-title">{{ title }}</div>
+  <div class="preview-body">{{ body }}</div>
+</div>
+
+<div class="card">
+  <h2>💌 {{ pet_name }} 写给{{ owner_name }}的信</h2>
+  <div class="preview-body" style="background:#FFFAF7;">{{ letter }}</div>
+</div>
+
+<div class="card">
+  <h2>推荐套餐</h2>
+  <div class="packages">
+    <div class="pkg"><div class="price">¥29.9</div><div class="desc">宠物来信 + 纪念卡</div></div>
+    <div class="pkg"><div class="price">¥99</div><div class="desc">一起变老纪念图</div></div>
+    <div class="pkg"><div class="price">¥199</div><div class="desc">时间线三图</div></div>
+    <div class="pkg"><div class="price">¥299</div><div class="desc">纪念短片</div></div>
+  </div>
+  <p class="muted" style="margin-top:14px;">提交素材后，我们会人工制作高清版本，温柔交付。</p>
+</div>
+
+<div style="text-align:center;margin-top:24px;">
+  <a class="btn accent" href="{{ url_for('garden', pet_name=pet_name) }}">进入记忆花园</a>
+  <a class="btn" href="{{ url_for('submit') }}">提交素材制作高清版</a>
+</div>
+{% endblock %}

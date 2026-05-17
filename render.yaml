@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: pet-memory
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 1 --threads 4 --timeout 200 --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SECRET_KEY
+        generateValue: true
+      # 部署后到 Render Dashboard 手动填入下列值
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: AI_BASE_URL
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_IMAGE_MODEL
+        sync: false
+      - key: AI_IMAGE_SUPPORTS_INPUT
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: NOTIFY_TO
+        sync: false

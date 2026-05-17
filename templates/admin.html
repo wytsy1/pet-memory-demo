@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}后台 · 毛孩子记忆馆{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>后台总览</h2>
+  <p class="muted">提交总数：{{ submissions|length }} · 博主申请：{{ creators|length }}</p>
+  <div style="margin-top:10px;">
+    <b>玩法分布：</b>
+    {% for k, v in play_stat.items() %}
+      <span class="tag">{{ k }} × {{ v }}</span>
+    {% else %}
+      <span class="muted">暂无数据</span>
+    {% endfor %}
+  </div>
+  <div style="margin-top:10px;">
+    <b>博主来源：</b>
+    {% for k, v in creator_stat.items() %}
+      <span class="tag">{{ k }} × {{ v }}</span>
+    {% else %}
+      <span class="muted">暂无数据</span>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>订单列表</h2>
+  {% if submissions %}
+  <div style="overflow-x:auto;">
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th>编号</th><th>时间</th><th>玩法</th><th>宠物</th><th>主人</th>
+        <th>联系方式</th><th>来源博主</th><th>套餐</th><th>状态</th><th>付款</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in submissions %}
+      <tr>
+        <td>{{ s.id }}</td>
+        <td>{{ s.created_at }}</td>
+        <td>{{ play_labels.get(s.play_type, s.play_type) }}</td>
+        <td>{{ s.pet_name }}（{{ s.pet_type }} / {{ s.pet_status }}）</td>
+        <td>{{ s.owner_name }}</td>
+        <td>{{ s.contact }}</td>
+        <td>{{ s.creator_source or '—' }}</td>
+        <td>{{ s.want_package or '—' }}</td>
+        <td><span class="tag">{{ s.order_status }}</span></td>
+        <td>{{ s.payment_status }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+    <p class="muted">暂无提交。</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>博主申请</h2>
+  {% if creators %}
+  <div style="overflow-x:auto;">
+  <table class="tbl">
+    <thead>
+      <tr><th>时间</th><th>昵称</th><th>平台</th><th>粉丝数</th><th>主页</th><th>联系方式</th><th>意向</th><th>状态</th></tr>
+    </thead>
+    <tbody>
+      {% for c in creators %}
+      <tr>
+        <td>{{ c.created_at }}</td>
+        <td>{{ c.nickname }}</td>
+        <td>{{ c.platform }}</td>
+        <td>{{ c.followers }}</td>
+        <td>{% if c.profile_url %}<a href="{{ c.profile_url }}" target="_blank">链接</a>{% else %}—{% endif %}</td>
+        <td>{{ c.contact }}</td>
+        <td>{{ '愿意样片' if c.wants_sample else '先聊聊' }}</td>
+        <td><span class="tag">{{ c.status }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+    <p class="muted">暂无博主申请。</p>
+  {% endif %}
+</div>
+{% endblock %}

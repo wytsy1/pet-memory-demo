@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}开始体验 · 毛孩子记忆馆{% endblock %}
+{% block content %}
+<div class="card">
+  <h2 style="margin-bottom:6px;">选择一种玩法</h2>
+  <p class="muted">当前选择：<b>{{ play_label }}</b></p>
+  <div class="chips" style="margin:14px 0 8px;">
+    {% for k, v in play_labels.items() %}
+      <a class="chip {% if k == play_type %}selected{% endif %}" href="{{ url_for('play', type=k) }}">{{ v }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<form class="card" method="POST" enctype="multipart/form-data" action="{{ url_for('preview') }}">
+  <input type="hidden" name="play_type" value="{{ play_type }}">
+
+  <div class="form-row">
+    <label>宠物名字</label>
+    <input type="text" name="pet_name" placeholder="比如：豆豆" required>
+  </div>
+
+  <div class="form-row">
+    <label>宠物类型</label>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="pet_type" value="猫" checked>猫</label>
+      <label class="chip"><input type="radio" name="pet_type" value="狗">狗</label>
+      <label class="chip"><input type="radio" name="pet_type" value="其他">其他</label>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label>宠物性格</label>
+    <div class="chips">
+      {% for p in ["黏人","活泼","安静","傲娇","胆小","温柔"] %}
+        <label class="chip"><input type="radio" name="pet_personality" value="{{ p }}" {% if loop.first %}checked{% endif %}>{{ p }}</label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label>宠物状态</label>
+    <div class="chips">
+      {% for s in ["陪伴中","老年宠物","已离开","只是想留念"] %}
+        <label class="chip"><input type="radio" name="pet_status" value="{{ s }}" {% if loop.first %}checked{% endif %}>{{ s }}</label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label>主人昵称</label>
+    <input type="text" name="owner_name" placeholder="比如：小雨">
+  </div>
+
+  <div class="form-row">
+    <label>外貌特征（很重要，越详细 AI 生成越像）</label>
+    <textarea name="pet_desc" placeholder="比如：橘黄色短毛猫，圆脸，琥珀色眼睛，左耳尖有一小撮白毛，胖胖的"></textarea>
+  </div>
+
+  <div class="form-row">
+    <label>上传宠物照片（可选，作为人工高保真版参考）</label>
+    <input type="file" name="pet_photos" accept="image/*" multiple>
+    <div class="muted" style="margin-top:6px;font-size:12px;">第一版 AI 模型暂不识别原图，照片用于后续高清定制时人工还原。</div>
+  </div>
+
+  <div class="form-row">
+    <label>想说的一句话</label>
+    <textarea name="message" placeholder="想对它说的话，或者想看到的画面"></textarea>
+  </div>
+
+  <div class="form-row">
+    <label>选择场景</label>
+    <div class="chips">
+      {% for sc in ["家里的沙发","窗边阳光","公园散步","老房子门口","海边","记忆花园"] %}
+        <label class="chip"><input type="radio" name="scene" value="{{ sc }}" {% if loop.first %}checked{% endif %}>{{ sc }}</label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <button class="btn block" type="submit">生成预览</button>
+</form>
+{% endblock %}

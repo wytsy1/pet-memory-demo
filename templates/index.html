@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <h1>毛孩子记忆馆</h1>
+  <p class="sub">让每一只毛孩子，都拥有自己的影像、故事和记忆花园。</p>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('play') }}">开始体验</a>
+    <a class="btn ghost" href="{{ url_for('creator') }}">宠物博主合作</a>
+  </div>
+</section>
+
+<div class="notice">
+  我们不会说它真的回来了。<br>
+  这是一份基于照片和故事的纪念影像创作，希望它能帮你保存一段温柔的记忆。
+</div>
+
+<h2 style="text-align:center;margin:30px 0 20px;">四种温柔的玩法</h2>
+<div class="grid">
+  <div class="play-card">
+    <div class="emoji">🧓🐶</div>
+    <h3>我和毛孩子一起变老</h3>
+    <p>想象你和毛孩子一起走过很多年，直到白发苍苍。</p>
+    <a class="btn small" href="{{ url_for('play', type='aging') }}">体验一下</a>
+  </div>
+  <div class="play-card">
+    <div class="emoji">📷</div>
+    <h3>再拍一张纪念合照</h3>
+    <p>把想念做成一张温柔的照片。</p>
+    <a class="btn small" href="{{ url_for('play', type='memorial') }}">体验一下</a>
+  </div>
+  <div class="play-card">
+    <div class="emoji">💌</div>
+    <h3>它写给我的一封信</h3>
+    <p>如果它会说话，想对你说什么？</p>
+    <a class="btn small" href="{{ url_for('play', type='letter') }}">体验一下</a>
+  </div>
+  <div class="play-card">
+    <div class="emoji">🌿</div>
+    <h3>我的电子毛孩子</h3>
+    <p>建一个只属于你们的记忆花园，每天看看它、喂喂它、陪陪它。</p>
+    <a class="btn small" href="{{ url_for('play', type='garden') }}">体验一下</a>
+  </div>
+</div>
+
+<div class="card" style="margin-top:30px;">
+  <h2>温柔的纪念套餐</h2>
+  <div class="packages">
+    <div class="pkg"><div class="price">¥9.9</div><div class="desc">宠物来信体验版</div></div>
+    <div class="pkg"><div class="price">¥29.9</div><div class="desc">纪念卡 + 手机壁纸</div></div>
+    <div class="pkg"><div class="price">¥99</div><div class="desc">一起变老纪念图</div></div>
+    <div class="pkg"><div class="price">¥199</div><div class="desc">时间线三图</div></div>
+    <div class="pkg"><div class="price">¥299</div><div class="desc">纪念短片</div></div>
+    <div class="pkg"><div class="price">¥699</div><div class="desc">纪念相册/礼盒</div></div>
+  </div>
+</div>
+{% endblock %}

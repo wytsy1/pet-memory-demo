@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}提交素材 · 毛孩子记忆馆{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>提交素材，让我们为你温柔制作</h2>
+  <p class="muted">提交后我们会先检查照片是否适合制作，再与你确认。</p>
+</div>
+
+<form class="card" method="POST" enctype="multipart/form-data" action="{{ url_for('submit') }}">
+  <div class="form-row">
+    <label>玩法类型</label>
+    <select name="play_type">
+      {% for k, v in play_labels.items() %}
+        <option value="{{ k }}" {% if prefill.play_type == k %}selected{% endif %}>{{ v }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label>宠物名字</label>
+    <input type="text" name="pet_name" value="{{ prefill.pet_name or '' }}" required>
+  </div>
+
+  <div class="form-row">
+    <label>宠物类型</label>
+    <div class="chips">
+      {% for t in ["猫","狗","其他"] %}
+        <label class="chip"><input type="radio" name="pet_type" value="{{ t }}" {% if prefill.pet_type == t or (not prefill.pet_type and loop.first) %}checked{% endif %}>{{ t }}</label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label>宠物状态</label>
+    <div class="chips">
+      {% for s in ["陪伴中","老年宠物","已离开","只是想留念"] %}
+        <label class="chip"><input type="radio" name="pet_status" value="{{ s }}" {% if prefill.pet_status == s or (not prefill.pet_status and loop.first) %}checked{% endif %}>{{ s }}</label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label>宠物性格</label>
+    <div class="chips">
+      {% for p in ["黏人","活泼","安静","傲娇","胆小","温柔"] %}
+        <label class="chip"><input type="radio" name="pet_personality" value="{{ p }}" {% if prefill.pet_personality == p or (not prefill.pet_personality and loop.first) %}checked{% endif %}>{{ p }}</label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label>主人昵称</label>
+    <input type="text" name="owner_name" value="{{ prefill.owner_name or '' }}">
+  </div>
+
+  <div class="form-row">
+    <label>联系方式（微信 / 手机号）</label>
+    <input type="text" name="contact" required>
+  </div>
+
+  <div class="form-row">
+    <label>来源博主（可选）</label>
+    <input type="text" name="creator_source" placeholder="是哪位博主推荐你来的？">
+  </div>
+
+  <div class="form-row">
+    <label>想制作的内容套餐</label>
+    <select name="want_package">
+      <option value="9.9 宠物来信体验版">¥9.9 宠物来信体验版</option>
+      <option value="29.9 纪念卡 + 手机壁纸">¥29.9 纪念卡 + 手机壁纸</option>
+      <option value="99 一起变老纪念图" selected>¥99 一起变老纪念图</option>
+      <option value="199 时间线三图">¥199 时间线三图</option>
+      <option value="299 纪念短片">¥299 纪念短片</option>
+      <option value="699 纪念相册/礼盒">¥699 纪念相册/礼盒</option>
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label>想对宠物说的话</label>
+    <textarea name="message">{{ prefill.message or '' }}</textarea>
+  </div>
+
+  <div class="form-row">
+    <label>上传宠物照片（可多张）</label>
+    <input type="file" name="pet_photos" accept="image/*" multiple required>
+  </div>
+
+  <div class="form-row">
+    <label>上传主人照片（可选）</label>
+    <input type="file" name="owner_photos" accept="image/*" multiple>
+  </div>
+
+  <div class="form-row">
+    <label>是否同意用于样片展示</label>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="allow_showcase" value="yes" checked>同意</label>
+      <label class="chip"><input type="radio" name="allow_showcase" value="no">不同意</label>
+    </div>
+  </div>
+
+  <button class="btn block" type="submit">温柔提交</button>
+</form>
+{% endblock %}

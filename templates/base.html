@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}毛孩子记忆馆{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <nav class="nav">
+    <a href="{{ url_for('index') }}" class="brand">毛孩子<span class="dot">·</span>记忆馆</a>
+    <div class="links">
+      <a href="{{ url_for('index') }}">首页</a>
+      <a href="{{ url_for('play') }}">开始体验</a>
+      <a href="{{ url_for('garden') }}">记忆花园</a>
+      <a href="{{ url_for('creator') }}">博主合作</a>
+      <a href="{{ url_for('admin') }}">后台</a>
+    </div>
+  </nav>
+  <main class="container">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer>
+    © 毛孩子记忆馆 · 用影像、故事和陪伴，留住每一段温柔
+  </footer>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
